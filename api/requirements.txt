@@ -26,5 +26,7 @@ pyyaml>=6.0
 gitpython>=3.1.0
 ddgs>=9.0.0
 
-# PDF parsing for product catalog ingestion
+# PDF / Word / Excel parsing for product catalog ingestion
 pypdf>=4.0.0
+python-docx>=1.1.0
+openpyxl>=3.1.0

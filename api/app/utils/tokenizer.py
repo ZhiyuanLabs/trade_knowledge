@@ -7,15 +7,15 @@ and search queries, otherwise BM25 scores become meaningless.
 Strategy:
   - Japanese runs (hiragana / katakana / kanji / half-width katakana) are tokenized
     into overlapping character bigrams. Japanese has no word boundaries, so bigrams
-    give robust matching for product names, katakana terms and part numbers.
-  - ASCII alphanumeric runs (model numbers / product codes like "M12", "6204ZZ",
-    "SUS304", "VP20") are kept as whole lowercased tokens.
+    give robust matching for fruit names, katakana terms and document numbers.
+  - ASCII alphanumeric runs (product codes like "FRT-BAN-001", "SO-2026-1101",
+    "RC-7001") are kept as whole lowercased tokens.
 """
 
 import re
 
-# Either an ASCII alphanumeric token (internal dots/hyphens kept, e.g. "6204ZZ",
-# "M12x50", "SUS304"), a single ASCII char, or a Japanese character run.
+# Either an ASCII alphanumeric token (internal dots/hyphens kept, e.g. "FRT-BAN-001",
+# "SO-2026-1101", "RC-7001"), a single ASCII char, or a Japanese character run.
 # Japanese Unicode blocks: hiragana (3040-309F), katakana (30A0-30FF),
 # CJK extension A (3400-4DBF), CJK unified ideographs (4E00-9FFF),
 # half-width katakana (FF66-FF9F).

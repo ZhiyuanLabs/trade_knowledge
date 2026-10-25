@@ -61,14 +61,102 @@ def _product_aliases(code: str, name: str) -> set[str]:
     return {a for a in aliases if len(a) >= 3 and any(ch.isdigit() for ch in a)}
 
 
+# ── 生鮮果実の表記ゆれ対応（ひらがな/カタカナ/漢字/英語/品種名）────────────────
+# 果物には金属部品のような数字的品番がないため、果物名とその同義語・品種名で
+# 商品を確定的に特定できるようにする。(正規化キー, [ユーザー表記の候補])。
+_FRUIT_SYNONYMS: list[tuple[str, list[str]]] = [
+    ("グレープフルーツ", ["グレープフルーツ", "GRAPEFRUIT"]),
+    ("ドラゴンフルーツ", ["ドラゴンフルーツ", "DRAGONFRUIT", "DRAGON FRUIT", "ピタヤ", "PITAYA", "火龙果"]),
+    ("パイナップル", ["パイナップル", "PINEAPPLE", "パイン", "菠萝"]),
+    ("ココナッツ", ["ココナッツ", "ココナツ", "COCONUT", "椰子"]),
+    ("ブルーベリー", ["ブルーベリー", "BLUEBERRY", "蓝莓"]),
+    ("さくらんぼ", ["さくらんぼ", "サクランボ", "佐藤錦", "CHERRY", "樱桃"]),
+    ("いちじく", ["いちじく", "イチジク", "無花果", "とよみつひめ", "FIG"]),
+    ("シャインマスカット", ["シャインマスカット", "マスカット", "ピオーネ", "SHINE", "MUSCAT", "種なしグレープ", "レッドグローブ", "葡萄", "ぶどう", "ブドウ", "GRAPE"]),
+    ("みかん", ["みかん", "ミカン", "蜜柑", "MIKAN", "温州みかん", "温州", "紅まどんな", "まどんな", "橘子"]),
+    ("オレンジ", ["オレンジ", "ORANGE", "ネーブル", "バレンシア", "橙子", "橙"]),
+    ("マンゴー", ["マンゴー", "マンゴ", "MANGO", "カラバオ", "ナムドークマイ", "芒果"]),
+    ("アボカド", ["アボカド", "あぼかど", "AVOCADO", "ハス種", "牛油果"]),
+    ("パパイヤ", ["パパイヤ", "パパイア", "PAPAYA", "木瓜"]),
+    ("ライチ", ["ライチ", "レイシ", "LYCHE", "LYCHEE", "玉荷包", "荔枝"]),
+    ("レモン", ["レモン", "LEMON", "ユーレカ", "柠檬"]),
+    ("ライム", ["ライム", "LIME"]),
+    ("ゆず", ["ゆず", "ユズ", "柚子", "YUZU"]),
+    ("りんご", ["りんご", "リンゴ", "林檎", "APPLE", "サンふじ", "ふじ", "シナノゴールド", "苹果"]),
+    ("ラ・フランス", ["ラ・フランス", "ラフランス", "洋梨", "梨", "ナシ", "PEAR"]),
+    ("プラム", ["プラム", "すもも", "スモモ", "PLUM", "サンタローザ", "李"]),
+    ("たねなし柿", ["たねなし柿", "平核無", "柿", "カキ", "かき", "PERSIMMON"]),
+    ("キウイ", ["キウイ", "キウイフルーツ", "KIWI", "ゼスプリ", "猕猴桃"]),
+    ("いちご", ["いちご", "イチゴ", "苺", "STRAWBERRY", "あまおう", "とちあいか", "草莓"]),
+    ("メロン", ["メロン", "MELON", "アンデスメロン", "マスクメロン", "甜瓜", "哈密瓜"]),
+    ("すいか", ["すいか", "スイカ", "西瓜", "WATERMELON"]),
+    ("バナナ", ["バナナ", "ばなな", "BANANA", "甘蕉", "香蕉"]),
+]
+
+
+def _to_katakana(s: str) -> str:
+    """Convert hiragana to katakana so いちご and イチゴ compare equal."""
+    out = []
+    for ch in s:
+        code = ord(ch)
+        if 0x3041 <= code <= 0x3096:  # hiragana block
+            out.append(chr(code + 0x60))
+        else:
+            out.append(ch)
+    return "".join(out)
+
+
+def _kana_norm(s: str | None) -> str:
+    return _to_katakana(_norm(s))
+
+
+# Flattened (normalized_term, key), longest first so グレープフルーツ wins over グレープ.
+_TERM_ITEMS = sorted(
+    (
+        (_kana_norm(term), key)
+        for key, terms in _FRUIT_SYNONYMS
+        for term in terms
+    ),
+    key=lambda item: len(item[0]),
+    reverse=True,
+)
+
+
+def _matched_fruit_keys(text_kana_norm: str) -> set[str]:
+    """Fruit keys mentioned in normalized text; a term already inside a longer
+    match is skipped (avoids グレープ firing when グレープフルーツ matched)."""
+    covered: list[tuple[int, int]] = []
+    keys: set[str] = set()
+    for term, key in _TERM_ITEMS:
+        start = 0
+        while True:
+            idx = text_kana_norm.find(term, start)
+            if idx == -1:
+                break
+            end = idx + len(term)
+            if not any(s <= idx and end <= e for s, e in covered):
+                covered.append((idx, end))
+                keys.add(key)
+            start = idx + 1
+    return keys
+
+
 def identify_products(query: str) -> list[str]:
-    """Deterministically extract product codes mentioned in a query (model-number matching)."""
+    """Deterministically extract product codes in a query.
+
+    Two matchers: numeric model-number aliases (industrial parts) and fresh
+    fruit name aliases (hiragana/katakana/kanji/English/cultivar variants).
+    """
     q = _norm(query)
+    qk = _kana_norm(query)
+    q_fruit_keys = _matched_fruit_keys(qk)
     hits: list[str] = []
     products = _find_products("")
     for p in products:
         aliases = _product_aliases(p["product_code"], p["name"])
         if any(_norm(a) in q for a in aliases):
+            hits.append(p["product_code"])
+        elif q_fruit_keys & _matched_fruit_keys(_kana_norm(p["name"])):
             hits.append(p["product_code"])
     return hits
 

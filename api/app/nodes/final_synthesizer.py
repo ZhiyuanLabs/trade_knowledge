@@ -50,7 +50,7 @@ Your task:
 1. Write a clear, accurate, and complete answer using ONLY the provided evidence and business data.
 2. {language_instruction}
 3. Do NOT add information not present in the evidence or business data.
-4. For operational questions, state figures, part numbers, order numbers, warehouses and ETAs exactly as given.
+4. For operational questions, state figures, product codes, 産地・品種, order numbers, warehouses and ETAs exactly as given.
 5. When safety-stock alerts appear, state the recommended purchase quantity and the incoming shipment ETA, and recommend placing a purchase order.
 6. Do NOT use Markdown pipe tables for operational data (stock/orders/shipments); present those figures as short bullet points because the UI already renders them as dedicated cards. A small table is acceptable only when comparing product specifications side by side.
 7. At the end, list citations as [Source: <file_path>] for catalog files. Keep any [Source: DB: ...] citations for business data.

@@ -18,11 +18,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN useradd --create-home --uid 10001 appuser
 
-COPY requirements.txt .
-
+# Heavy, rarely-changing ML base installed first so it is cached independently
+# of the application dependencies below.
 RUN pip install --upgrade pip && \
-    pip install --extra-index-url https://download.pytorch.org/whl/cpu "torch==${TORCH_VERSION}" && \
-    pip install -r requirements.txt
+    pip install --extra-index-url https://download.pytorch.org/whl/cpu "torch==${TORCH_VERSION}"
+
+# Application dependencies as their own layer. Changing requirements.txt
+# (e.g. adding python-docx / openpyxl for Word/Excel catalog parsing) only
+# rebuilds this smaller layer instead of reinstalling torch.
+COPY requirements.txt .
+RUN pip install -r requirements.txt
 
 COPY . .
 

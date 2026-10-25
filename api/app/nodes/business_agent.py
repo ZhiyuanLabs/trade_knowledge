@@ -93,9 +93,9 @@ def _plan_tools(user_query: str) -> list[dict]:
 
 def _refine_calls(calls: list[dict], user_query: str) -> list[dict]:
     """
-    Deterministic guard: when the query mentions concrete product codes (e.g.
-    20A / M12 / 6204ZZ / T20), make sure every selected tool targets those
-    codes instead of pulling the full table. Keeps the LLM's tool choice,
+    Deterministic guard: when the query mentions concrete products (e.g.
+    バナナ / いちご / FRT-BAN-001), make sure every selected tool targets those
+    products instead of pulling the full table. Keeps the LLM's tool choice,
     only narrows the keyword.
     """
     codes = identify_products(user_query)

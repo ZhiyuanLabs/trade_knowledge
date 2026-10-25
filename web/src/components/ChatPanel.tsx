@@ -700,22 +700,22 @@ export default function ChatPanel() {
                 何をお手伝いしましょうか？
               </h2>
               <p className="text-[14px] text-[#a0a0ab] mb-10 text-center">
-                商品カタログの検索、在庫・受注・入荷の照会、発注推奨まで対応します。
+                生鮮果実の産地・輸入・包装の検索、在庫・受注・入荷の照会、発注推奨まで対応します。
               </p>
 
               {/* Suggestion cards */}
               <div className="grid grid-cols-3 gap-2.5 w-full">
                 {[
-                  { title: "在庫照会", sub: "ステンレス鋼管 20A" },
-                  { title: "商品仕様", sub: "ベアリング 6204ZZ" },
-                  { title: "仕様と入荷", sub: "安全在庫・ベアリング" },
+                  { title: "在庫照会", sub: "フィリピン産バナナ" },
+                  { title: "輸入・検疫", sub: "バナナの輸入手続き" },
+                  { title: "在庫と包装", sub: "クリスマス・いちご" },
                 ].map(({ title, sub }, i) => (
                   <button
                     key={i}
                     onClick={() => setInput(
-                      i === 0 ? "ステンレス鋼管20Aの在庫はありますか？倉庫も教えてください。" :
-                      i === 1 ? "ボールベアリング6204ZZの仕様と主な用途を教えてください。" :
-                                "在庫が少ないベアリング6204ZZについて、仕様と入荷予定を教えてください。"
+                      i === 0 ? "フィリピン産バナナの在庫はありますか？倉庫も教えてください。" :
+                      i === 1 ? "バナナをフィリピンから輸入する際の植物検疫と通関の手続きを教えてください。" :
+                                "クリスマス向けのいちごについて、在庫・入荷予定と包装規格を教えてください。"
                     )}
                     className="text-left bg-white hover:bg-[#fafafa] rounded-2xl px-4 py-4 transition-all duration-200 cursor-pointer"
                     style={{
@@ -1009,7 +1009,7 @@ export default function ChatPanel() {
             ref={inputRef}
             value={input}
             onChange={e => setInput(e.target.value)}
-            placeholder="商品名・品番・受注番号、または仕様を入力してください…"
+            placeholder="果物名・産地・受注番号、または輸入・包装のご質問を入力してください…"
             className="w-full bg-transparent text-[15px] text-[#1c1c1e] placeholder-[#a0a0ab] px-5 py-[17px] pr-16 focus:outline-none rounded-[20px]"
             disabled={isLoading}
             onKeyDown={e => {

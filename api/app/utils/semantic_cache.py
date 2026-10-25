@@ -68,9 +68,19 @@ def check_semantic_cache(user_query: str, threshold: float = 0.95) -> dict | Non
                 metadata.get("best_evidence_score", current_evidence_score)
             )
             
-            # Reconstruct the GraphState dictionary
+            # Reconstruct the GraphState dictionary. Only catalog queries are
+            # cached, so route defaults to "catalog"; business_result is stored
+            # as a JSON string for completeness.
+            br_raw = metadata.get("business_result")
+            try:
+                business_result = json.loads(br_raw) if br_raw else None
+            except (TypeError, ValueError):
+                business_result = None
+
             cached_state = {
                 "user_query": user_query,
+                "route": metadata.get("route", "catalog") or "catalog",
+                "business_result": business_result,
                 "final_answer": metadata.get("final_answer", ""),
                 "citations": json.loads(metadata.get("citations", "[]")),
                 "evidence_score": current_evidence_score,
@@ -94,9 +104,20 @@ def save_to_semantic_cache(user_query: str, final_state: dict) -> None:
         if final_state.get("_from_cache"): return # Avoid caching cached items
 
         answer = final_state.get("final_answer")
-        
+
         # Don't cache broken/empty answers
         if not answer or "Error" in answer: return
+
+        # Never cache a "no evidence / not found" fallback. A failed retrieval
+        # (e.g. an empty planner result) would otherwise be permanently
+        # remembered and keep returning the empty answer to every semantically
+        # similar future query. A successful answer always carries at least
+        # document citations OR a business result.
+        has_citations = bool(final_state.get("citations"))
+        has_business_result = bool(final_state.get("business_result"))
+        if not has_citations and not has_business_result:
+            log.info("cache.skip_empty_evidence", query_preview=user_query[:60])
+            return
 
         collection = _get_cache_collection()
         embedder = get_embedding_model()
@@ -106,10 +127,16 @@ def save_to_semantic_cache(user_query: str, final_state: dict) -> None:
         
         query_vec = embedder.encode([user_query])[0].tolist()
         
-        # Prepare metadata (must be string/int/float)
+        # Prepare metadata (Chroma allows str/int/float/bool; nested values are
+        # stored as JSON strings).
+        route = final_state.get("route") or "catalog"
         metadata = {
             "final_answer": answer,
-            "citations": json.dumps(final_state.get("citations", [])),
+            "citations": json.dumps(final_state.get("citations", []), ensure_ascii=False),
+            "route": route,
+            "business_result": json.dumps(
+                final_state.get("business_result") or None, ensure_ascii=False
+            ),
             "evidence_score": float(final_state.get("evidence_score", 0.0)),
             "best_evidence_score": float(
                 final_state.get("best_evidence_score", final_state.get("evidence_score", 0.0))

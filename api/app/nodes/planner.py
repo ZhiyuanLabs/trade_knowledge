@@ -35,7 +35,7 @@ DECISION 2: If insufficient, plan the retrieval strategy.
 - Provide reformulated queries targeting those gaps.
 - Never repeat sub-questions that were already processed in prior retrieval cycles.
 - If recent retrieval cycles added little or no new evidence, prefer synthesizing from the current evidence instead of repeating the same search.
-- IMPORTANT: ALWAYS formulate the rewritten queries and sub-questions in JAPANESE, keeping product names, model numbers (品番) and katakana terms exactly as they appear in the catalog.
+- IMPORTANT: ALWAYS formulate the rewritten queries and sub-questions in JAPANESE, keeping product names, 産地・品種・等級 (grade/size), and katakana terms exactly as they appear in the catalog.
 
 Respond EXACTLY with valid JSON in this format:
 {
@@ -48,8 +48,19 @@ Respond EXACTLY with valid JSON in this format:
 
 
 def _normalize_question(text: str) -> str:
-    """Normalize question text to detect semantically identical planning loops."""
-    return re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+    """Normalize question text to detect semantically identical planning loops.
+
+    Keeps Latin/alphanumeric characters AND Japanese (hiragana, katakana, CJK
+    ideographs, prolonged-sound mark, iteration mark, full-width alphanumerics).
+    Keeping only [a-z0-9] would strip every Japanese-only query to an empty
+    string, after which the dedup guard treats it as redundant and drops all
+    planned queries — the catalog retrieval would never run.
+    """
+    return re.sub(
+        r"[^a-z0-9\u3040-\u30ff\u4e00-\u9fff\u3005\uff10-\uff5a]+",
+        " ",
+        text.lower(),
+    ).strip()
 
 
 def _looks_redundant(candidate: str, processed: list[str]) -> bool:
@@ -222,19 +233,33 @@ def planner_node(state: GraphState) -> GraphState:
     MAX_SUB_QUESTIONS = 2
     pending = sub_qs[:MAX_SUB_QUESTIONS] if sub_qs else rewritten[:1]
 
-    if evidence_items and not pending:
+    if not pending:
+        if evidence_items:
+            # We already have evidence but the model produced no new retrieval
+            # work: avoid repeating the same search and go synthesize.
+            log.info(
+                "planner.no_new_retrieval_work",
+                iteration=iteration,
+                evidence_items=len(evidence_items),
+                processed=len(processed_sub_questions),
+                stalled_cycles=consecutive_stalled_cycles,
+            )
+            return {
+                **state,
+                "enough_evidence": True,
+                "iteration_count": iteration + 1,
+            }
+
+        # Zero evidence but no usable planned query (model returned empty arrays,
+        # or every candidate was deduped). Never spin idle: deterministically
+        # force a first retrieval using the original user question.
+        pending = [user_query]
+        rewritten = rewritten or [user_query]
         log.info(
-            "planner.no_new_retrieval_work",
+            "planner.empty_plan_fallback",
             iteration=iteration,
-            evidence_items=len(evidence_items),
-            processed=len(processed_sub_questions),
-            stalled_cycles=consecutive_stalled_cycles,
+            fallback_query=user_query[:80],
         )
-        return {
-            **state,
-            "enough_evidence": True,
-            "iteration_count": iteration + 1,
-        }
 
     log.info("planner.sub_questions", planned=pending)
 

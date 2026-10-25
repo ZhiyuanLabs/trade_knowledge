@@ -1,7 +1,9 @@
 """
-Step 2 — Parse product catalog files (.md/.mdx/.txt/.pdf) from a local directory.
+Step 2 — Parse product catalog files (.md/.mdx/.txt/.pdf/.docx/.xlsx).
 
-Markdown is split by H1-H3 headings; PDFs are split per page; TXT is one block.
+Markdown is split by H1-H3 headings; PDFs are split per page; TXT is one block;
+Word documents are split by Heading paragraphs (tables flattened to text);
+Excel workbooks become one section per sheet (rows joined by " | ").
 The directory is provided by the DOCS_DIR environment variable (no git clone).
 """
 
@@ -19,6 +21,8 @@ log = get_logger(__name__)
 DOCS_DIR = os.path.abspath(os.getenv("DOCS_DIR", "./data_docs"))
 TEXT_EXT = {".md", ".mdx", ".txt"}
 PDF_EXT = {".pdf"}
+DOCX_EXT = {".docx"}
+XLSX_EXT = {".xlsx"}
 
 
 def _extract_frontmatter_title(content: str) -> tuple[str, str]:
@@ -97,6 +101,94 @@ def _parse_pdf_file(file_path: Path, rel_path: str) -> list[dict]:
     return sections
 
 
+def _docx_table_to_text(table) -> str:
+    """Flatten a python-docx table to pipe-separated rows."""
+    lines = []
+    for row in table.rows:
+        cells = [c.text.strip().replace("\n", " ") for c in row.cells]
+        lines.append(" | ".join(cells))
+    return "\n".join(lines)
+
+
+def _parse_docx_file(file_path: Path, rel_path: str) -> list[dict]:
+    """Parse a Word document; split by Heading/Title paragraphs, flatten tables."""
+    from docx import Document
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+    from docx.oxml.ns import qn
+
+    doc = Document(str(file_path))
+    file_title = file_path.stem.replace("_", " ").replace("-", " ").strip()
+    sections: list[dict] = []
+    heading = file_title
+    buffer: list[str] = []
+
+    def flush() -> None:
+        text = "\n".join(buffer).strip()
+        if text:
+            sections.append({
+                "title": file_title,
+                "section": heading,
+                "content": text,
+                "file_path": rel_path,
+            })
+        buffer.clear()
+
+    for child in doc.element.body.iterchildren():
+        if child.tag == qn("w:p"):
+            para = Paragraph(child, doc)
+            style_name = para.style.name if para.style is not None else ""
+            text = para.text.strip()
+            if style_name.startswith(("Heading", "Title")):
+                flush()
+                heading = text or heading
+            elif text:
+                buffer.append(text)
+        elif child.tag == qn("w:tbl"):
+            table = Table(child, doc)
+            buffer.append(_docx_table_to_text(table))
+
+    flush()
+
+    if not sections:
+        fallback = "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+        if fallback.strip():
+            sections.append({
+                "title": file_title,
+                "section": file_title,
+                "content": fallback,
+                "file_path": rel_path,
+            })
+    return sections
+
+
+def _parse_xlsx_file(file_path: Path, rel_path: str) -> list[dict]:
+    """Parse an Excel workbook; every sheet becomes one section (rows as text)."""
+    from openpyxl import load_workbook
+
+    workbook = load_workbook(str(file_path), data_only=True, read_only=True)
+    file_title = file_path.stem.replace("_", " ").replace("-", " ").strip()
+    sections: list[dict] = []
+
+    for worksheet in workbook.worksheets:
+        lines = []
+        for row in worksheet.iter_rows(values_only=True):
+            if not row or not any(c is not None and str(c).strip() != "" for c in row):
+                continue
+            lines.append(" | ".join(
+                "" if cell is None else str(cell).strip() for cell in row
+            ))
+        if lines:
+            sections.append({
+                "title": file_title,
+                "section": f"{file_title} - {worksheet.title}",
+                "content": "\n".join(lines),
+                "file_path": rel_path,
+            })
+    workbook.close()
+    return sections
+
+
 def parse_docs(docs_dir: str = DOCS_DIR) -> list[dict]:
     """
     Walk the catalog directory recursively and parse all supported files.
@@ -106,7 +198,7 @@ def parse_docs(docs_dir: str = DOCS_DIR) -> list[dict]:
     if not os.path.isdir(docs_dir):
         raise FileNotFoundError(f"Docs directory not found: {docs_dir}")
 
-    supported = TEXT_EXT | PDF_EXT
+    supported = TEXT_EXT | PDF_EXT | DOCX_EXT | XLSX_EXT
     doc_files = sorted(
         p for p in Path(docs_dir).rglob("*")
         if p.is_file() and p.suffix.lower() in supported
@@ -117,9 +209,14 @@ def parse_docs(docs_dir: str = DOCS_DIR) -> list[dict]:
     raw_sections = []
     for file_path in doc_files:
         rel_path = str(file_path.relative_to(docs_dir)).replace("\\", "/")
+        suffix = file_path.suffix.lower()
         try:
-            if file_path.suffix.lower() in PDF_EXT:
+            if suffix in PDF_EXT:
                 raw_sections.extend(_parse_pdf_file(file_path, rel_path))
+            elif suffix in DOCX_EXT:
+                raw_sections.extend(_parse_docx_file(file_path, rel_path))
+            elif suffix in XLSX_EXT:
+                raw_sections.extend(_parse_xlsx_file(file_path, rel_path))
             else:
                 raw_sections.extend(_parse_text_file(file_path, rel_path))
         except Exception as e:
