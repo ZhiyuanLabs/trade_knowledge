@@ -150,7 +150,7 @@ docker compose up --build
 ```text
 LLM_PROVIDER=openai
 OPENAI_BASE_URL=https://api.example.com/v1
-OPENAI_API_KEY=sk-...
+OPENAI_API_KEY=your api key
 LLM_MODEL=your-model
 RESPONSE_LANGUAGE=japanese
 ```
