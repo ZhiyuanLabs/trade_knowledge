@@ -1,0 +1,13 @@
+.env
+.DS_Store
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+data/nextjs-repo/
+data/chroma_db/
+data/bm25_index.pkl
+data/bm25_corpus.json
+data/chunks.json
+data/eval/

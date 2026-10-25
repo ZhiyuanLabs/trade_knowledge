@@ -1,0 +1,47 @@
+services:
+  api:
+    build:
+      context: ./api
+    env_file:
+      - ./api/.env
+    environment:
+      CHROMA_PATH: /app/data/chroma_db
+      NEXTJS_REPO_PATH: /app/data/nextjs-repo
+      BM25_CORPUS_PATH: /app/data/bm25_corpus.json
+      CHUNKS_PATH: /app/data/chunks.json
+      DOCS_DIR: /app/data_docs
+      BUSINESS_DB_PATH: /app/data/business.db
+      SOURCE_LABEL: 商品カタログ
+      AUTO_INGEST_ON_BOOT: "true"
+      PRELOAD_MODELS_ON_STARTUP: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - trade_knowledge_data:/app/data
+      - trade_knowledge_model_cache:/home/appuser/.cache/huggingface
+      - ./api/data_docs:/app/data_docs
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health').read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 240s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+volumes:
+  trade_knowledge_data:
+    name: trade_knowledge_backend_data
+  trade_knowledge_model_cache:
+    name: trade_knowledge_hf_cache

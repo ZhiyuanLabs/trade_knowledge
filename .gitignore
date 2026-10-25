@@ -1,0 +1,35 @@
+.DS_Store
+.pytest_cache/
+.venv/
+
+# Workspace-only files
+.agents/
+docs/
+ref_visual/
+skills-lock.json
+
+# Root-level local artifacts
+data/
+
+# API local artifacts
+api/.env
+api/.pytest_cache/
+api/data/eval/
+
+# Web local artifacts
+web/.env.local
+web/.next/
+web/node_modules/
+
+# Python caches (global)
+__pycache__/
+*.pyc
+*.pyo
+
+# Local-only demo / helper artifacts (not published)
+business_view.db
+api/sse_*.json
+build_*.txt
+
+# Personal interview prep materials (kept locally, not published)
+面试讲解_*.html

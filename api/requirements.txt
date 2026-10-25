@@ -1,0 +1,30 @@
+# Orchestration
+langgraph>=1.1.6
+langchain-core>=1.2.0
+
+# LLM (Grok/xAI — OpenAI-compatible client)
+openai>=1.0.0
+
+# Embeddings (local, no API cost)
+sentence-transformers>=3.0.0
+
+# Vector DB (local, no Docker)
+chromadb>=0.6.0
+
+# Keyword Search
+rank-bm25>=0.2.2
+
+# API
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+slowapi>=0.1.9
+
+# Utilities
+python-dotenv>=1.0.0
+tiktoken>=0.9.0
+pyyaml>=6.0
+gitpython>=3.1.0
+ddgs>=9.0.0
+
+# PDF parsing for product catalog ingestion
+pypdf>=4.0.0
