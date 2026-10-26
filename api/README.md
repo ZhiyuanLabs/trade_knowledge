@@ -16,7 +16,7 @@
 | `GET /health` | ヘルスチェック |
 | `POST /ask` | 通常応答（`{ answer, citations, evidence_score, from_cache, route, business_result }`） |
 | `POST /ask/stream` | SSE ストリーミング（`cache / node / llm / sql / tool / answer_delta / final / error`） |
-| `GET /source/download?path=...` | カタログ原文（.md / .pdf）のダウンロード |
+| `GET /source/download?path=...` | 文書原文（PDF / Word / Excel / Markdown / テキスト）のダウンロード |
 
 ## LangGraph ノード構成
 

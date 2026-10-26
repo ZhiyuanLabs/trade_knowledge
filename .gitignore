@@ -4,7 +4,6 @@
 
 # Workspace-only files
 .agents/
-docs/
 ref_visual/
 skills-lock.json
 
