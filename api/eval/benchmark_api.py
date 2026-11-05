@@ -16,9 +16,9 @@ ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
 
 DEFAULT_QUERIES = [
-    "How does caching work in the Next.js App Router?",
-    "How do cookies(), headers(), and searchParams affect static optimization, caching, and dynamic rendering in the Next.js App Router?",
-    "How do generateStaticParams, dynamicParams, and notFound() interact in the Next.js App Router, and what are the practical implications for static generation and runtime behavior?",
+    "フィリピン産バナナの植物検疫手続きを教えてください。",
+    "とちあいかの在庫と次回入荷予定を教えてください。",
+    "クリスマス向けとちあいかの在庫、入荷予定、包装規格をまとめてください。",
 ]
 
 CACHE_COLLECTION_NAME = "semantic_cache"
@@ -99,6 +99,8 @@ def run_phase(phase: str, base_url: str, queries: list[str], timeout: float) -> 
                 "best_evidence_score": round(float(body.get("best_evidence_score", 0.0)), 4),
                 "current_evidence_score": round(float(body.get("current_evidence_score", 0.0)), 4),
                 "citations_count": len(body.get("citations", [])),
+                "route": body.get("route"),
+                "from_cache": bool(body.get("from_cache", False)),
             }
         )
 
@@ -111,6 +113,7 @@ def run_phase(phase: str, base_url: str, queries: list[str], timeout: float) -> 
             f" current={body.get('current_evidence_score', 0.0):.4f}"
         )
         print(f"      citations: {len(body.get('citations', []))}")
+        print(f"      route: {body.get('route')} / cache: {bool(body.get('from_cache', False))}")
 
     summary = summarize(elapsed_values)
     print("\nSummary")

@@ -286,8 +286,15 @@ curl -X POST http://localhost:8000/ask \
 
 ```bash
 docker compose exec api python -m pytest      # ノード・グラフ構造のテスト
-docker compose exec api python eval/run_eval.py
+docker compose exec api python eval/run_eval.py --validate-only
+docker compose exec api python eval/run_eval.py --skip-faithfulness
+docker compose exec api python eval/run_eval.py  # Ragas Faithfulnessを含む
 ```
+
+`api/eval/trade_knowledge_eval.json` には日本語の業務質問40件（文書検索、在庫・受注・
+入出荷、Hybrid、拒答）を収録しています。評価結果は `api/data/eval/` のJSON/CSVへ保存し、
+Faithfulness、検索Recall@5、業務データ正確率、ルート正解率、拒答正解率、
+キャッシュ整合性、平均・P50・P95応答時間を記録します。
 
 ## プロダクション移行に向けて
 

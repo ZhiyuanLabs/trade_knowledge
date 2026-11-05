@@ -87,10 +87,18 @@ def _build_client() -> OpenAI:
         )
 
     elif provider == "openai":
-        api_key = os.getenv("OPENAI_API_KEY")
+        # OPENAI_* is the generic configuration surface for any
+        # OpenAI-compatible service.  DEEPSEEK_API_KEY is accepted as a
+        # convenience in managed environments where OPENAI_* secret names are
+        # reserved by the platform.
+        api_key = os.getenv("OPENAI_API_KEY") or os.getenv("DEEPSEEK_API_KEY")
+        base_url = os.getenv("OPENAI_BASE_URL")
         if not api_key:
-            raise EnvironmentError("OPENAI_API_KEY is not set.")
+            raise EnvironmentError(
+                "OPENAI_API_KEY (or DEEPSEEK_API_KEY) is not set."
+            )
         return OpenAI(
+            base_url=base_url or None,
             api_key=api_key,
             timeout=LLM_TIMEOUT,
         )

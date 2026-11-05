@@ -67,11 +67,22 @@ RESPONSE_LANGUAGE=japanese
 ## テスト・評価
 
 ```bash
-python -m pytest                      # ノード・グラフ構造のテスト
-python eval/run_eval.py              # 評価パイプライン
-python eval/benchmark_api.py         # コールド/ウォームのレイテンシ計測
-python debug_pipeline.py             # LLM 接続・パイプライン診断
+python -m pytest                                      # ノード・グラフ構造のテスト
+python eval/run_eval.py --validate-only               # 40件の金標準データを検証
+python eval/run_eval.py --skip-faithfulness           # 決定論的な全指標
+python eval/run_eval.py                                # 上記 + Ragas Faithfulness
+python eval/benchmark_api.py                           # コールド/ウォームのレイテンシ計測
+python debug_pipeline.py                               # LLM 接続・パイプライン診断
 ```
+
+評価データは `eval/trade_knowledge_eval.json` にあり、日本語の catalog / business /
+hybrid / refusal を計40件収録しています。結果は `data/eval/` に JSON と CSV で保存され、
+ルート正解率、検索 Recall@5、業務データ正確率、拒答正解率、キャッシュ整合性、
+Faithfulness、平均・P50・P95応答時間を記録します。業務数値は生成文ではなく
+`business_result` をDBの期待値と完全一致で評価します。
+
+評価器はアプリ本体と同じ `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `LLM_MODEL` を使います。
+管理環境では `DEEPSEEK_API_KEY` も `OPENAI_API_KEY` の代替として利用できます。
 
 ## 作者
 
