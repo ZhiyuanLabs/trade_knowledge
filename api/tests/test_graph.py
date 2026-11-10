@@ -458,7 +458,7 @@ def test_synthesizer_no_evidence_returns_fallback():
     from app.nodes.final_synthesizer import final_synthesizer_node
     state = _base_state(evidence_items=[])
     result = final_synthesizer_node(state)
-    assert "could not find" in result["final_answer"].lower()
+    assert "見つかりません" in result["final_answer"]
     assert result["citations"] == []
 
 
@@ -479,7 +479,7 @@ def test_synthesizer_parses_citations():
         "relevance_score": 0.9,
     }]
 
-    with patch("app.nodes.final_synthesizer.chat", return_value=mock_answer):
+    with patch("app.nodes.final_synthesizer.answer_chat", return_value=mock_answer):
         state = _base_state(evidence_items=evidence)
         result = final_synthesizer_node(state)
 
@@ -507,7 +507,7 @@ def test_synthesizer_deduplicates_citations():
         "relevance_score": 0.9,
     }]
 
-    with patch("app.nodes.final_synthesizer.chat", return_value=mock_answer):
+    with patch("app.nodes.final_synthesizer.answer_chat", return_value=mock_answer):
         state = _base_state(evidence_items=evidence)
         result = final_synthesizer_node(state)
 
@@ -535,7 +535,7 @@ def test_synthesizer_strips_artificial_answer_wrapper():
         "relevance_score": 0.9,
     }]
 
-    with patch("app.nodes.final_synthesizer.chat", return_value=mock_answer):
+    with patch("app.nodes.final_synthesizer.answer_chat", return_value=mock_answer):
         state = _base_state(evidence_items=evidence)
         result = final_synthesizer_node(state)
 
@@ -557,7 +557,7 @@ def test_synthesizer_llm_error_uses_fallback():
         "relevance_score": 0.85,
     }]
 
-    with patch("app.nodes.final_synthesizer.chat", side_effect=APIConnectionError(request=MagicMock())):
+    with patch("app.nodes.final_synthesizer.answer_chat", side_effect=APIConnectionError(request=MagicMock())):
         state = _base_state(evidence_items=evidence)
         result = final_synthesizer_node(state)
 
@@ -631,7 +631,7 @@ def test_source_download_returns_repo_file(tmp_path: Path):
     target.write_text("# Guide\n", encoding="utf-8")
 
     with patch("api.main.PRELOAD_MODELS_ON_STARTUP", False), \
-         patch("api.main.NEXTJS_REPO_ROOT", docs_root.resolve()):
+         patch("api.main.DOCS_ROOT", docs_root.resolve()):
         with TestClient(app) as client:
             response = client.get("/source/download", params={"path": "docs/guide.mdx"})
 
@@ -651,7 +651,7 @@ def test_source_download_blocks_path_traversal(tmp_path: Path):
     outside.write_text("outside", encoding="utf-8")
 
     with patch("api.main.PRELOAD_MODELS_ON_STARTUP", False), \
-         patch("api.main.NEXTJS_REPO_ROOT", docs_root.resolve()):
+         patch("api.main.DOCS_ROOT", docs_root.resolve()):
         with TestClient(app) as client:
             response = client.get("/source/download", params={"path": "../outside.mdx"})
 
@@ -747,7 +747,7 @@ def test_e2e_graph_with_mocked_llm_and_retrievers():
     with patch("app.nodes.planner.chat", side_effect=mock_chat), \
          patch("app.nodes.retrieval_specialist.chat", side_effect=mock_chat), \
          patch("app.nodes.chunk_reader.chat", side_effect=mock_chat), \
-         patch("app.nodes.final_synthesizer.chat", side_effect=mock_chat), \
+         patch("app.nodes.final_synthesizer.answer_chat", side_effect=mock_chat), \
          patch("app.retrievers.bm25_retriever.bm25_search", return_value=[fake_chunk]), \
          patch("app.retrievers.vector_retriever.vector_search", return_value=[fake_chunk]), \
          patch("app.utils.semantic_cache.check_semantic_cache", return_value=None), \

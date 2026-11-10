@@ -1,0 +1,36 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__([<p>__start__</p>]):::first
+	intent_router(intent_router)
+	business_agent(business_agent)
+	business_tools(business_tools)
+	planner(planner)
+	decomposition_router(decomposition_router)
+	retrieval_specialist(retrieval_specialist)
+	retriever(retriever)
+	reranker(reranker)
+	chunk_reader(chunk_reader)
+	final_synthesizer(final_synthesizer)
+	__end__([<p>__end__</p>]):::last
+	__start__ --> intent_router;
+	business_tools --> planner;
+	chunk_reader --> decomposition_router;
+	decomposition_router -. &nbsp;judge&nbsp; .-> planner;
+	decomposition_router -. &nbsp;retrieve&nbsp; .-> retrieval_specialist;
+	intent_router -.-> business_agent;
+	intent_router -.-> business_tools;
+	intent_router -.-> planner;
+	planner -. &nbsp;tools&nbsp; .-> decomposition_router;
+	planner -. &nbsp;synthesize&nbsp; .-> final_synthesizer;
+	reranker --> chunk_reader;
+	retrieval_specialist --> retriever;
+	retriever --> reranker;
+	business_agent --> __end__;
+	final_synthesizer --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
