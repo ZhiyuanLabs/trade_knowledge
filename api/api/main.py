@@ -7,10 +7,11 @@ import os
 import json
 import threading
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -68,6 +69,42 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ── Demo daily cap ────────────────────────────────────────────────────────────
+# Protects the LLM key from runaway usage when the app is exposed publicly.
+# 0 = disabled (local development). Counts only the LLM-backed endpoints.
+DEMO_DAILY_REQUEST_CAP = int(os.getenv("DEMO_DAILY_REQUEST_CAP", "0") or 0)
+_cap_lock = threading.Lock()
+_cap_state = {"date": "", "count": 0}
+_CAPPED_PATHS = {"/ask", "/ask/stream"}
+
+
+@app.middleware("http")
+async def demo_daily_cap(request: Request, call_next):
+    if DEMO_DAILY_REQUEST_CAP <= 0:
+        return await call_next(request)
+    if request.method != "POST" or request.url.path not in _CAPPED_PATHS:
+        return await call_next(request)
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    with _cap_lock:
+        if _cap_state["date"] != today:
+            _cap_state["date"] = today
+            _cap_state["count"] = 0
+        exceeded = _cap_state["count"] >= DEMO_DAILY_REQUEST_CAP
+        if not exceeded:
+            _cap_state["count"] += 1
+
+    if exceeded:
+        log.warning("api.demo.daily_cap_reached", cap=DEMO_DAILY_REQUEST_CAP)
+        return JSONResponse(
+            status_code=429,
+            content={
+                "detail": "本日のデモ利用上限に達しました。時間をおいて再度お試しください。"
+            },
+        )
+    return await call_next(request)
+
 
 app.add_middleware(
     CORSMiddleware,

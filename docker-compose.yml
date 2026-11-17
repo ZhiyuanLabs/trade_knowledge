@@ -14,8 +14,11 @@ services:
       SOURCE_LABEL: 商品カタログ
       AUTO_INGEST_ON_BOOT: "true"
       PRELOAD_MODELS_ON_STARTUP: "true"
+      # 0 = disabled. Set a positive value when exposing the demo publicly.
+      DEMO_DAILY_REQUEST_CAP: ${DEMO_DAILY_REQUEST_CAP:-0}
     ports:
-      - "8000:8000"
+      # Bind to loopback only: the public entrypoint is the reverse proxy.
+      - "127.0.0.1:8000:8000"
     volumes:
       - trade_knowledge_data:/app/data
       - trade_knowledge_model_cache:/home/appuser/.cache/huggingface
@@ -37,7 +40,8 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      # Bind to loopback only: the public entrypoint is the reverse proxy.
+      - "127.0.0.1:3000:3000"
     restart: unless-stopped
 
 volumes:
